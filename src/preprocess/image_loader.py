@@ -24,8 +24,9 @@ class ImageTransform:
 
 class ImgDataset(data.Dataset):
 
-    def __init__(self, file_list, transform):
+    def __init__(self, file_list, label_list, transform):
         self.file_list = file_list
+        self.label_list = label_list
         self.transform = transform
 
     def __len__(self):
@@ -33,6 +34,7 @@ class ImgDataset(data.Dataset):
 
     def __getitem__(self, index):
         img_path = self.file_list[index]
+        label = self.label_list[index]
         img = Image.open(img_path)
         img_transformed = self.transform(img)
-        return img_transformed
+        return img_transformed, label
