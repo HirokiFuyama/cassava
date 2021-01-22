@@ -12,9 +12,16 @@ class ImageTransform:
     """
 
     def __init__(self, mean, std):
+        """
+
+        Args:
+            mean: average of learning data
+            std: std of learning data
+        """
         self.data_transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean, std),
+            # transforms.Normalize(mean, std),
+            transforms.Normalize((mean_1, mean_2, mean_3), (std_1, std_2, std_3))  # for 3 channel
             transforms.Pad([0, 100])
         ])
 
