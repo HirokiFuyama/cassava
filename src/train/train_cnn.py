@@ -8,32 +8,39 @@ import torch.nn as nn
 import torch.utils.data
 from torch import optim
 from sklearn.model_selection import StratifiedShuffleSplit
-# from torch.nn import functional as F
-# import matplotlib.pyplot as plt
 
 from src.preprocess.image_loader import ImgDataset, ImageTransform
+# from src.preprocess.image_loader_self import DataLoaderSelf
 from src.cnn.cnn import CNN
 
+"""
+GPU使用率が低い
+・データ数が多いー＞違う
+・画像サイズが大きい -> 違う
+
+・
+"""
 
 @dataclass
 class Config:
     lr: float = 1e-5
     beta1: float = 0.9
     beta2: float = 0.9
-    input_dim: int = 800
+    input_dim: int = 600
     num_epoch: int = 100
     num_stopping: int = 2
-    batch_size: int = 512
+    batch_size: int = 8
     save_path: str = '../../model/cnn.pt'
 
 
 def train(train_dataloader, eval_dataloader, model, config):
     # check GPU
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # device = "cpu"
     print("Use device：", device)
 
     model = model.to(device)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss().to(device)  # nn.CrossEntropyLoss = crass entropy + softmax, not have to one hot
     optimizer = optim.Adam(model.parameters(), lr=config.lr, betas=[config.beta1, config.beta2])
 
     models = []
@@ -50,10 +57,13 @@ def train(train_dataloader, eval_dataloader, model, config):
         model.train()
         train_epoch_loss = 0
         for _images, _label in train_dataloader:
-            _images = _images.to(device)
+            # _images = _images.to(device)
+            _images = _images.to(device).float()
+            _label = _label.to(device)
 
-            # For liner vae
-            # images = images.view(-1, config.input_dim)
+            ########################################
+            # _label = _label.to(device).long()
+            ########################################
 
             pred = model(_images)
 
@@ -72,10 +82,13 @@ def train(train_dataloader, eval_dataloader, model, config):
         eval_epoch_loss = 0
         n_e = 0
         for _images, _label in eval_dataloader:
-            _images = _images.to(device)
+            # _images = _images.to(device)
+            _images = _images.to(device).float()
+            _label = _label.to(device)
 
-            # For liner vae
-            # images = images.view(-1, config.input_dim)
+            ########################################
+            # _label = _label.to(device).long()
+            ########################################
 
             pred = model(_images)
 
@@ -132,18 +145,14 @@ def train(train_dataloader, eval_dataloader, model, config):
     return models[low_index + 1]
 
 
-def process(image_dir_path, label_path, config=Config()):
-    # params of normalization
-    _mean = 0
-    _std = 1
-
+def process(image_dir_path, label_path, config):
     # read file path and label
     train_path_list = glob.glob(image_dir_path)
     train_path_list.sort()
-    train_path_list = np.array(train_path_list)
+    train_path_list = np.array(train_path_list)[:]
 
     label_df = pd.read_csv(label_path)
-    label = label_df['label'].values
+    label = label_df['label'].values[:]
 
     # split data
     sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
@@ -158,16 +167,28 @@ def process(image_dir_path, label_path, config=Config()):
     # mk dataloader
     train_dataset = ImgDataset(file_list=x_train,
                                label_list=y_train,
-                               transform=ImageTransform(_mean, _std))
+                               transform=ImageTransform())
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
 
     eval_dataset = ImgDataset(file_list=x_eval,
                               label_list=y_eval,
-                              transform=ImageTransform(_mean, _std))
+                              transform=ImageTransform())
     eval_dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=config.batch_size, shuffle=True)
 
+
+    # train_dataloader = DataLoaderSelf(file_list=x_train,
+    #                                   label_list=y_train,
+    #                                   batch_size=config.batch_size,
+    #                                   shuffle=True)
+    #
+    # eval_dataloader = DataLoaderSelf(file_list=x_eval,
+    #                                  label_list=y_eval,
+    #                                  batch_size=config.batch_size,
+    #                                  shuffle=True)
+
+
     # model
-    cnn = CNN(config.input_dim, config.input_dim)
+    cnn = CNN(config.input_dim)
 
     # train model
     model, generated = train(train_dataloader, eval_dataloader, cnn, config)
@@ -178,7 +199,30 @@ def process(image_dir_path, label_path, config=Config()):
     return generated
 
 
+    #############################################################################################################
+    # _mean = 0.5
+    # _std = 0.5
+    # train_path_list = glob.glob(rf'C:\Users\HirokiFuruyama\analysis\va_2021\figure\spectrogram_png\train\*.png')
+    # label_t = np.zeros(len(train_path_list))
+    # eval_path_list = glob.glob(rf'C:\Users\HirokiFuruyama\analysis\va_2021\figure\spectrogram_png\test\*.png')
+    # label_e = np.zeros(len(eval_path_list))
+    # train_dataset = ImgDataset(file_list=train_path_list,
+    #                            label_list=label_t,
+    #                            transform=ImageTransform(_mean, _std))
+    # train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
+    #
+    # eval_dataset = ImgDataset(file_list=eval_path_list,
+    #                           label_list=label_e,
+    #                           transform=ImageTransform(_mean, _std))
+    # eval_dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=config.batch_size, shuffle=True)
+    # cnn = CNN(config.input_dim, channels=1)
+    # model, generated = train(train_dataloader, eval_dataloader, cnn, config)
+    # torch.save(model.state_dict(), config.save_path)
+    # return generated
+    ###############################################################################################################
+
+
 if __name__ == '__main__':
     train_dir = '../../data/train_images/*.jpg'
     label_dir = '../../data/train.csv'
-    process(train_dir, label_dir)
+    process(train_dir, label_dir, Config())
