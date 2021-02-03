@@ -28,8 +28,8 @@ class Config:
     beta2: float = 0.9
     input_dim: int = 600
     num_epoch: int = 100
-    num_stopping: int = 2
-    batch_size: int = 8
+    num_stopping: int = 20
+    batch_size: int = 128
     save_path: str = '../../model/cnn.pt'
 
 
@@ -149,10 +149,10 @@ def process(image_dir_path, label_path, config):
     # read file path and label
     train_path_list = glob.glob(image_dir_path)
     train_path_list.sort()
-    train_path_list = np.array(train_path_list)[:]
+    train_path_list = np.array(train_path_list)[:2000]
 
     label_df = pd.read_csv(label_path)
-    label = label_df['label'].values[:]
+    label = label_df['label'].values[:2000]
 
     # split data
     sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
