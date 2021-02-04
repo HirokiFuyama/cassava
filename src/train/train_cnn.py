@@ -12,6 +12,7 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from src.preprocess.image_loader import ImgDataset, ImageTransform
 # from src.preprocess.image_loader_self import DataLoaderSelf
 from src.cnn.cnn import CNN
+# from src.cnn.resnet18 import Block
 
 """
 GPU使用率が低い
@@ -26,10 +27,9 @@ class Config:
     lr: float = 1e-5
     beta1: float = 0.9
     beta2: float = 0.9
-    input_dim: int = 600
     num_epoch: int = 100
     num_stopping: int = 20
-    batch_size: int = 128
+    batch_size: int = 16
     save_path: str = '../../model/cnn.pt'
 
 
@@ -188,7 +188,8 @@ def process(image_dir_path, label_path, config):
 
 
     # model
-    cnn = CNN(config.input_dim)
+    cnn = CNN()
+    # cnn = Block(3, 1)
 
     # train model
     model, generated = train(train_dataloader, eval_dataloader, cnn, config)

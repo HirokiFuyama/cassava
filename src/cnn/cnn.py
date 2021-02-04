@@ -3,14 +3,14 @@ import torch.nn.functional as F
 
 
 class CNN(nn.Module):
-    def __init__(self, image_size, channels=3):
+    def __init__(self, channels=3):
         super(CNN, self).__init__()
-        self.image_size = image_size
+        # self.image_size = image_size
 
-        self.conv1 = nn.Conv2d(channels, 4, kernel_size=8, stride=4, padding=4)
+        self.conv1 = nn.Conv2d(channels, 64, kernel_size=8, stride=4, padding=4)
         self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(4, 4, kernel_size=4, stride=2, padding=1)
-        self.fc1 = nn.Linear(4*18*25, 512)
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=4, stride=2, padding=1)
+        self.fc1 = nn.Linear(64*18*25, 512)
 
         ####################################################
         # self.fc1 = nn.Linear(64, 512)
