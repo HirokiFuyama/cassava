@@ -7,29 +7,28 @@ import pandas as pd
 import torch.nn as nn
 import torch.utils.data
 from torch import optim
+from torch.utils.tensorboard import SummaryWriter
 from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.metrics import accuracy_score
 
 from src.preprocess.image_loader import ImgDataset, ImageTransform
 # from src.preprocess.image_loader_self import DataLoaderSelf
-from src.cnn.cnn import CNN
-# from src.cnn.resnet18 import Block
+# from src.cnn.cnn import CNN
+from src.cnn.resnet18 import ResNet18
 
 """
-GPU使用率が低い
-・データ数が多いー＞違う
-・画像サイズが大きい -> 違う
-
-・
+To Do : 
 """
 
 @dataclass
 class Config:
-    lr: float = 1e-5
+    lr: float = 1e-3
     beta1: float = 0.9
     beta2: float = 0.9
     num_epoch: int = 100
-    num_stopping: int = 20
-    batch_size: int = 16
+    num_stopping: int = 30
+    batch_size: int = 8
+    log_path: str = '../../log/resnet/lr_1e-3'
     save_path: str = '../../model/cnn.pt'
 
 
@@ -45,6 +44,7 @@ def train(train_dataloader, eval_dataloader, model, config):
 
     models = []
     eval_loss = []
+    writer = SummaryWriter(log_dir=config.log_path)
     for epoch in range(config.num_epoch):
         t_epoch_start = time.time()
 
@@ -56,8 +56,9 @@ def train(train_dataloader, eval_dataloader, model, config):
 
         model.train()
         train_epoch_loss = 0
+        train_epoch_acc = 0
+        n_t = 0
         for _images, _label in train_dataloader:
-            # _images = _images.to(device)
             _images = _images.to(device).float()
             _label = _label.to(device)
 
@@ -68,21 +69,27 @@ def train(train_dataloader, eval_dataloader, model, config):
             pred = model(_images)
 
             loss = criterion(pred, _label)
+            acc = accuracy_score(pred.to('cpu').detach().numpy().copy().argmax(axis=1),
+                                 _label.to('cpu').detach().numpy().copy())
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             train_epoch_loss += loss.item()
+            train_epoch_acc += acc
+            n_t += 1
 
-        print('Train epoch loss:{:.4f}'.format(train_epoch_loss / train_dataloader.batch_size))
+        # print('Train epoch loss:{:.4f}'.format(train_epoch_loss / train_dataloader.batch_size))
+        print('Train epoch loss:{:.4f}'.format(train_epoch_loss / n_t))
+
 
         # -------------------------------------------------------------------------------
 
         model.eval()
         eval_epoch_loss = 0
+        eval_epoch_acc = 0
         n_e = 0
         for _images, _label in eval_dataloader:
-            # _images = _images.to(device)
             _images = _images.to(device).float()
             _label = _label.to(device)
 
@@ -93,15 +100,27 @@ def train(train_dataloader, eval_dataloader, model, config):
             pred = model(_images)
 
             loss = criterion(pred, _label)
+            acc = accuracy_score(pred.to('cpu').detach().numpy().copy().argmax(axis=1),
+                                 _label.to('cpu').detach().numpy().copy())
 
             eval_epoch_loss += loss.item()
+            eval_epoch_acc += acc
             n_e += 1
 
         models.append(model)
 
         # Early stopping -------------------------------------------------------
 
+        # eval_loss.append(eval_epoch_loss / eval_dataloader.batch_size)
         eval_loss.append(eval_epoch_loss / n_e)
+
+        # To tensor board
+        # writer.add_scalar('Train/loss', train_epoch_loss / train_dataloader.batch_size, epoch)
+        # writer.add_scalar('Eval/loss', eval_epoch_loss / eval_dataloader.batch_size, epoch)
+        writer.add_scalar('Train/loss', train_epoch_loss / n_t, epoch)
+        writer.add_scalar('Eval/loss', eval_epoch_loss / n_e, epoch)
+        writer.add_scalar('Train/accuracy', train_epoch_acc / n_t, epoch)
+        writer.add_scalar('Eval/accuracy', eval_epoch_acc / n_e, epoch)
 
         if epoch >= config.num_stopping:
             if epoch == config.num_stopping:
@@ -131,16 +150,11 @@ def train(train_dataloader, eval_dataloader, model, config):
             pass
 
         t_epoch_finish = time.time()
+        # print('Eval_Epoch_Loss:{:.4f}'.format(eval_epoch_loss / eval_dataloader.batch_size))
         print('Eval_Epoch_Loss:{:.4f}'.format(eval_epoch_loss / n_e))
         print('timer:  {:.4f} sec.'.format(t_epoch_finish - t_epoch_start))
 
-        # check generated image ---------------------------------------------------
-        # if epoch % 20 == 0:
-        #     x = pred.to('cpu').detach().numpy().copy()
-        #     x = x[0].reshape(128, 128)
-        #     generated_images.append(x)
-        #     plt.imshow(x)
-        #     plt.show()
+    writer.close()
 
     return models[low_index + 1]
 
@@ -149,10 +163,10 @@ def process(image_dir_path, label_path, config):
     # read file path and label
     train_path_list = glob.glob(image_dir_path)
     train_path_list.sort()
-    train_path_list = np.array(train_path_list)[:2000]
+    train_path_list = np.array(train_path_list)[:1000]
 
     label_df = pd.read_csv(label_path)
-    label = label_df['label'].values[:2000]
+    label = label_df['label'].values[:1000]
 
     # split data
     sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
@@ -187,9 +201,9 @@ def process(image_dir_path, label_path, config):
     #                                  shuffle=True)
 
 
-    # model
-    cnn = CNN()
-    # cnn = Block(3, 1)
+    # # model
+    # cnn = CNN()
+    cnn = ResNet18(input_dim=3, output_dim=5)
 
     # train model
     model, generated = train(train_dataloader, eval_dataloader, cnn, config)
@@ -198,29 +212,6 @@ def process(image_dir_path, label_path, config):
     torch.save(model.state_dict(), config.save_path)
 
     return generated
-
-
-    #############################################################################################################
-    # _mean = 0.5
-    # _std = 0.5
-    # train_path_list = glob.glob(rf'C:\Users\HirokiFuruyama\analysis\va_2021\figure\spectrogram_png\train\*.png')
-    # label_t = np.zeros(len(train_path_list))
-    # eval_path_list = glob.glob(rf'C:\Users\HirokiFuruyama\analysis\va_2021\figure\spectrogram_png\test\*.png')
-    # label_e = np.zeros(len(eval_path_list))
-    # train_dataset = ImgDataset(file_list=train_path_list,
-    #                            label_list=label_t,
-    #                            transform=ImageTransform(_mean, _std))
-    # train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
-    #
-    # eval_dataset = ImgDataset(file_list=eval_path_list,
-    #                           label_list=label_e,
-    #                           transform=ImageTransform(_mean, _std))
-    # eval_dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=config.batch_size, shuffle=True)
-    # cnn = CNN(config.input_dim, channels=1)
-    # model, generated = train(train_dataloader, eval_dataloader, cnn, config)
-    # torch.save(model.state_dict(), config.save_path)
-    # return generated
-    ###############################################################################################################
 
 
 if __name__ == '__main__':
