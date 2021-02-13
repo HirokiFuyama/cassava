@@ -26,30 +26,29 @@ class ResNet18(nn.Module):
 
         # Block 2
         self.block2 = nn.ModuleList([
-            Block(128, 128) for _ in range(2)
+            Block(128, 128) for _ in range(1)
         ])
 
-        # self.conv3 = nn.Conv2d(128, 256,
-        #                        kernel_size=(1, 1),
-        #                        stride=(2, 2))
-        #
-        # # Block 3
-        # self.block3 = nn.ModuleList([
-        #     Block(256, 256) for _ in range(2)
-        # ])
+        self.conv3 = nn.Conv2d(128, 256,
+                               kernel_size=(1, 1),
+                               stride=(2, 2))
 
-        # self.conv4 = nn.Conv2d(256, 512,
-        #                        kernel_size=(1, 1),
-        #                        stride=(2, 2))
-        #
-        # # Block 4
-        # self.block4 = nn.ModuleList([
-        #     Block(512, 512) for _ in range(3)
-        # ])
+        # Block 3
+        self.block3 = nn.ModuleList([
+            Block(256, 256) for _ in range(2)
+        ])
+
+        self.conv4 = nn.Conv2d(256, 512,
+                               kernel_size=(1, 1),
+                               stride=(2, 2))
+
+        # Block 4
+        self.block4 = nn.ModuleList([
+            Block(512, 512) for _ in range(1)
+        ])
 
         self.avg_pool = GlobalAvgPool2d()  # TODO: GlobalAvgPool2d
-        # self.fc = nn.Linear(512, 1000)
-        self.fc = nn.Linear(128, 1000)
+        self.fc = nn.Linear(512, 1000)
         self.out = nn.Linear(1000, output_dim)
 
     def forward(self, x):
@@ -62,12 +61,12 @@ class ResNet18(nn.Module):
         h = self.conv2(h)
         for block in self.block2:
             h = block(h)
-        # h = self.conv3(h)
-        # for block in self.block3:
-        #     h = block(h)
-        # h = self.conv4(h)
-        # for block in self.block4:
-        #     h = block(h)
+        h = self.conv3(h)
+        for block in self.block3:
+            h = block(h)
+        h = self.conv4(h)
+        for block in self.block4:
+            h = block(h)
         h = self.avg_pool(h)
         h = self.fc(h)
         h = torch.relu(h)

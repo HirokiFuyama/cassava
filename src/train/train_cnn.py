@@ -17,19 +17,19 @@ from src.preprocess.image_loader import ImgDataset, ImageTransform
 from src.cnn.resnet18 import ResNet18
 
 """
-To Do : 
+To Do
 """
 
 @dataclass
 class Config:
-    lr: float = 1e-3
+    lr: float = 1e-4
     beta1: float = 0.9
     beta2: float = 0.9
-    num_epoch: int = 100
-    num_stopping: int = 30
+    num_epoch: int = 60
+    num_stopping: int = 12
     batch_size: int = 8
-    log_path: str = '../../log/resnet/lr_1e-3'
-    save_path: str = '../../model/cnn.pt'
+    log_path: str = '../../log/resnet/lr_1e-4_random42_256-2'
+    save_path: str = '../../model/resnet_lr_1e_4_random42_256-2.pt'
 
 
 def train(train_dataloader, eval_dataloader, model, config):
@@ -163,13 +163,13 @@ def process(image_dir_path, label_path, config):
     # read file path and label
     train_path_list = glob.glob(image_dir_path)
     train_path_list.sort()
-    train_path_list = np.array(train_path_list)[:1000]
+    train_path_list = np.array(train_path_list)[:]
 
     label_df = pd.read_csv(label_path)
-    label = label_df['label'].values[:1000]
+    label = label_df['label'].values[:]
 
     # split data
-    sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
+    sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
     for train_index, test_index in sss.split(train_path_list, label):
         x_train, x_test = train_path_list[train_index], train_path_list[test_index]
         y_train, y_test = label[train_index], label[test_index]
@@ -206,12 +206,9 @@ def process(image_dir_path, label_path, config):
     cnn = ResNet18(input_dim=3, output_dim=5)
 
     # train model
-    model, generated = train(train_dataloader, eval_dataloader, cnn, config)
+    model = train(train_dataloader, eval_dataloader, cnn, config)
 
-    # save model
-    torch.save(model.state_dict(), config.save_path)
-
-    return generated
+    return torch.save(model.state_dict(), config.save_path)
 
 
 if __name__ == '__main__':
