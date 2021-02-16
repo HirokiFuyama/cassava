@@ -28,8 +28,8 @@ class Config:
     num_epoch: int = 60
     num_stopping: int = 12
     batch_size: int = 8
-    log_path: str = '../../log/resnet/lr_1e-4_random42_256-2'
-    save_path: str = '../../model/resnet_lr_1e_4_random42_256-2.pt'
+    log_path: str = '../../log/resnet/lr_1e-4_random42'
+    save_path: str = '../../model/resnet_lr_1e_4_random42.pt'
 
 
 def train(train_dataloader, eval_dataloader, model, config):
@@ -62,10 +62,6 @@ def train(train_dataloader, eval_dataloader, model, config):
             _images = _images.to(device).float()
             _label = _label.to(device)
 
-            ########################################
-            # _label = _label.to(device).long()
-            ########################################
-
             pred = model(_images)
 
             loss = criterion(pred, _label)
@@ -92,10 +88,6 @@ def train(train_dataloader, eval_dataloader, model, config):
         for _images, _label in eval_dataloader:
             _images = _images.to(device).float()
             _label = _label.to(device)
-
-            ########################################
-            # _label = _label.to(device).long()
-            ########################################
 
             pred = model(_images)
 
@@ -200,9 +192,7 @@ def process(image_dir_path, label_path, config):
     #                                  batch_size=config.batch_size,
     #                                  shuffle=True)
 
-
-    # # model
-    # cnn = CNN()
+    # model
     cnn = ResNet18(input_dim=3, output_dim=5)
 
     # train model
